@@ -2,6 +2,8 @@ import streamlit as st
 import os
 import requests
 import sqlite3
+import pandas as pd
+
 
 from scripts.analyze_procurement import (
     analyze_top_suppliers,
@@ -32,7 +34,22 @@ def ensure_db():
 
 ensure_db()
 
+def debug_db(db_path):
+    st.subheader("Debug: Checking database")
+    try:
+        conn = sqlite3.connect(db_path)
+        tables = pd.read_sql("SELECT name FROM sqlite_master WHERE type='table';", conn)
+        st.write("Tables found:", tables)
 
+        if "procurement_data" not in tables["name"].values:
+            st.error("❌ Table 'procurement_data' NOT found!")
+        else:
+            st.success("✅ Table 'procurement_data' exists!")
+
+        conn.close()
+    except Exception as e:
+        st.error(f"Error reading DB: {e}")
+debug_db(LOCAL_DB_PATH)
 # Streamlit App
 st.title("Finnish Government Procurement Analysis")
 
