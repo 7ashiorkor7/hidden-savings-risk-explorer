@@ -1,0 +1,4 @@
+purchase_id,supplier_id,category,amount,date,region
+1,1,IT,5000,2025-01-05,Europe
+2,2,Office,2000,2025-01-12,Europe
+3,3,Raw Materials,12000,2025-02-01,Asia
