@@ -69,5 +69,3 @@ plt.title("Monthly Procurement Spend Trend")
 plt.tight_layout()
 plt.show()
 
-# Close connection
-conn.close()
