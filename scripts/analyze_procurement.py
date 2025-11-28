@@ -2,160 +2,155 @@ import sqlite3
 import pandas as pd
 import matplotlib.pyplot as plt
 
-DB_PATH = r"C:\Users\nashi\Documents\GitHubProjects\Sievo\hidden-savings-risk-explorer\procurement.db"
+DB_PATH = None
 
-def get_connection(db_path=DB_PATH):
-    return sqlite3.connect(db_path)
 
-# Basic Procurement Analysis
-def analyze_top_suppliers(conn, top_n=10):
-    query = f"""
-    SELECT toimittaja_nimi, SUM(tiliointisumma) AS total_spend
-    FROM procurement_data
-    GROUP BY toimittaja_nimi
-    ORDER BY total_spend DESC
-    LIMIT {top_n};
-    """
-    df = pd.read_sql(query, conn)
-    print(df)
-    plt.figure(figsize=(10,6))
-    plt.barh(df['toimittaja_nimi'], df['total_spend']/1e6)
-    plt.xlabel("Total Spend (Millions €)")
-    plt.title(f"Top {top_n} Suppliers by Total Spend")
-    plt.gca().invert_yaxis()
-    plt.tight_layout()
-    plt.show()
+#  Standard Analyses 
 
-def analyze_top_categories(conn, top_n=10):
-    query = f"""
-    SELECT hankintakategoria, SUM(tiliointisumma) AS total_spend
-    FROM procurement_data
-    GROUP BY hankintakategoria
-    ORDER BY total_spend DESC
-    LIMIT {top_n};
-    """
-    df = pd.read_sql(query, conn)
-    print(df)
-    plt.figure(figsize=(10,6))
-    plt.barh(df['hankintakategoria'], df['total_spend']/1e6)
-    plt.xlabel("Total Spend (Millions €)")
-    plt.title(f"Top {top_n} Procurement Categories")
-    plt.gca().invert_yaxis()
-    plt.tight_layout()
-    plt.show()
+def analyze_top_suppliers(db_path, top_n=10):
+    conn = sqlite3.connect(db_path)
+    df = pd.read_sql(f"""
+        SELECT toimittaja_nimi, SUM(tiliointisumma) AS total_spend
+        FROM procurement_data
+        GROUP BY toimittaja_nimi
+        ORDER BY total_spend DESC
+        LIMIT {top_n};
+    """, conn)
+    conn.close()
 
-def analyze_monthly_trends(conn):
-    query = """
-    SELECT strftime('%Y-%m', tositepvm) AS month, SUM(tiliointisumma) AS total_spend
-    FROM procurement_data
-    GROUP BY month
-    ORDER BY month;
-    """
-    df = pd.read_sql(query, conn)
-    print(df.head(10))
-    plt.figure(figsize=(12,6))
-    plt.plot(df['month'], df['total_spend']/1e6, marker='o')
+    # Plot
+    fig, ax = plt.subplots()
+    ax.barh(df['toimittaja_nimi'], df['total_spend']/1e6)
+    ax.set_xlabel("Total Spend (Millions €)")
+    ax.set_title(f"Top {top_n} Suppliers by Total Spend")
+    ax.invert_yaxis()
+
+    return df, fig
+
+
+def analyze_top_categories(db_path, top_n=10):
+    conn = sqlite3.connect(db_path)
+    df = pd.read_sql(f"""
+        SELECT hankintakategoria, SUM(tiliointisumma) AS total_spend
+        FROM procurement_data
+        GROUP BY hankintakategoria
+        ORDER BY total_spend DESC
+        LIMIT {top_n};
+    """, conn)
+    conn.close()
+
+    fig, ax = plt.subplots()
+    ax.barh(df['hankintakategoria'], df['total_spend']/1e6)
+    ax.set_xlabel("Total Spend (Millions €)")
+    ax.set_title(f"Top {top_n} Procurement Categories")
+    ax.invert_yaxis()
+
+    return df, fig
+
+
+def analyze_monthly_trends(db_path):
+    conn = sqlite3.connect(db_path)
+    df = pd.read_sql("""
+        SELECT strftime('%Y-%m', tositepvm) AS month, SUM(tiliointisumma) AS total_spend
+        FROM procurement_data
+        GROUP BY month
+        ORDER BY month;
+    """, conn)
+    conn.close()
+
+    fig, ax = plt.subplots(figsize=(12,6))
+    ax.plot(df['month'], df['total_spend']/1e6, marker='o')
+    ax.set_xlabel("Month")
+    ax.set_ylabel("Total Spend (Millions €)")
+    ax.set_title("Monthly Procurement Spend Trend")
     plt.xticks(rotation=45)
-    plt.ylabel("Total Spend (Millions €)")
-    plt.title("Monthly Procurement Spend Trend")
     plt.tight_layout()
-    plt.show()
+
+    return df, fig
+
 
 # Hidden Savings & Risk Indicators 
 
-def analyze_supplier_concentration(conn):
+def analyze_supplier_concentration(db_path, top_n=10):
+    conn = sqlite3.connect(db_path)
     df = pd.read_sql("""
         SELECT toimittaja_nimi, SUM(tiliointisumma) AS total_spend
         FROM procurement_data
         GROUP BY toimittaja_nimi
         ORDER BY total_spend DESC
     """, conn)
+    conn.close()
 
-    top_n = 10
     top_suppliers = df.head(top_n)
     rest_sum = df['total_spend'][top_n:].sum()
     plot_df = top_suppliers.copy()
     plot_df.loc[len(plot_df)] = ['Other Suppliers', rest_sum]
 
-    print("\nSupplier Concentration (Top 10 + Others):")
-    print(plot_df)
+    fig, ax = plt.subplots()
+    ax.pie(plot_df['total_spend'], labels=plot_df['toimittaja_nimi'], autopct='%1.1f%%')
+    ax.set_title("Supplier Concentration: Top 10 vs Others")
 
-    plt.figure(figsize=(8,6))
-    plt.pie(plot_df['total_spend'], labels=plot_df['toimittaja_nimi'], autopct='%1.1f%%')
-    plt.title("Supplier Concentration: Top 10 vs Others")
-    plt.show()
+    return plot_df, fig
 
 
-def analyze_spend_volatility(conn):
-    df = pd.read_sql("""
+def analyze_spend_volatility(db_path, top_n=10):
+    conn = sqlite3.connect(db_path)
+    df = pd.read_sql(f"""
         SELECT hankintakategoria, MAX(tiliointisumma) - MIN(tiliointisumma) AS spend_range
         FROM procurement_data
         GROUP BY hankintakategoria
         ORDER BY spend_range DESC
-        LIMIT 10
+        LIMIT {top_n};
     """, conn)
+    conn.close()
 
-    print("\nTop 10 Categories by Spend Volatility:")
-    print(df)
+    fig, ax = plt.subplots()
+    ax.barh(df['hankintakategoria'], df['spend_range']/1e3)
+    ax.set_xlabel("Spend Range (€ thousands)")
+    ax.set_title("Top Categories by Spend Volatility")
+    ax.invert_yaxis()
 
-    plt.figure(figsize=(10,6))
-    plt.barh(df['hankintakategoria'], df['spend_range']/1e3)
-    plt.xlabel("Spend Range (€ thousands)")
-    plt.title("Top 10 Categories by Spend Volatility")
-    plt.gca().invert_yaxis()
-    plt.tight_layout()
-    plt.show()
+    return df, fig
 
 
-def analyze_maverick_spend(conn):
+def analyze_maverick_spend(db_path):
+    conn = sqlite3.connect(db_path)
     df = pd.read_sql("""
         SELECT SUM(tiliointisumma) AS total_spend
         FROM procurement_data
-        WHERE hankintakategoria IS NULL OR hankintakategoria = ''
+        WHERE hankintakategoria IS NULL OR hankintakategoria = '';
     """, conn)
+    conn.close()
 
     total = df['total_spend'][0]
-    
-    if total is None or pd.isna(total) or total == 0:
-        print("\nNo Maverick / Unclassified Spend found.")
-        return
+    fig = None
+    if total and total > 0:
+        fig, ax = plt.subplots()
+        ax.barh(['Unclassified'], [total/1e3])
+        ax.set_xlabel("Total Spend (€ thousands)")
+        ax.set_title("Maverick / Unclassified Spend")
+        plt.tight_layout()
 
-    print("\nUnclassified Spend:")
-    print(total)
-    
-    plt.figure(figsize=(6,4))
-    plt.barh(['Unclassified'], [total/1e3])
-    plt.xlabel("Total Spend (€ thousands)")
-    plt.title("Unclassified Spend")
-    plt.tight_layout()
-    plt.show()
+    return total, fig
 
 
-def analyze_long_tail_suppliers(conn):
+def analyze_long_tail_suppliers(db_path):
+    conn = sqlite3.connect(db_path)
     df = pd.read_sql("""
         SELECT toimittaja_nimi, SUM(tiliointisumma) AS total_spend
         FROM procurement_data
         GROUP BY toimittaja_nimi
         ORDER BY total_spend DESC
     """, conn)
+    conn.close()
 
     df['cum_pct'] = df['total_spend'].cumsum() / df['total_spend'].sum()
     tail_suppliers = df[df['cum_pct'] > 0.8]
 
-    print("\nLong-tail Suppliers (bottom 20% of spend):")
-    print(tail_suppliers)
+    fig, ax = plt.subplots()
+    ax.barh(tail_suppliers['toimittaja_nimi'], tail_suppliers['total_spend']/1e3)
+    ax.set_xlabel("Spend (€ thousands)")
+    ax.set_title("Long-tail Supplier Analysis (bottom 20% of spend)")
+    ax.invert_yaxis()
 
-
-if __name__ == "__main__":
-    conn = get_connection()
-    try:
-        analyze_top_suppliers(conn)
-        analyze_top_categories(conn)
-        analyze_monthly_trends(conn)
-        analyze_supplier_concentration(conn)
-        analyze_spend_volatility(conn)
-        analyze_maverick_spend(conn)
-        analyze_long_tail_suppliers(conn)
-    finally:
-        conn.close()
-        print("Database connection closed.")
+    return tail_suppliers, fig
