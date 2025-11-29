@@ -1,8 +1,8 @@
 import streamlit as st
 import os
-import requests
+#import requests
 import sqlite3
-import pandas as pd
+#import pandas as pd
 
 
 from scripts.analyze_procurement import (
@@ -18,38 +18,6 @@ from scripts.analyze_procurement import (
 DB_URL = "https://finnishprocurementdb.s3.eu-north-1.amazonaws.com/procurement.db"
 LOCAL_DB_PATH = "procurement.db"   
 
-def ensure_db():
-    """Download DB from S3 when running on Streamlit Cloud."""
-    if not os.path.exists(LOCAL_DB_PATH):
-        st.info("Downloading procurement database from S3...")
-        try:
-            response = requests.get(DB_URL)
-            response.raise_for_status()
-            with open(LOCAL_DB_PATH, "wb") as f:
-                f.write(response.content)
-            st.success("Database downloaded successfully!")
-        except Exception as e:
-            st.error(f"Failed to download DB: {e}")
-            st.stop()
-
-ensure_db()
-
-def debug_db(db_path):
-    st.subheader("Debug: Checking database")
-    try:
-        conn = sqlite3.connect(db_path)
-        tables = pd.read_sql("SELECT name FROM sqlite_master WHERE type='table';", conn)
-        st.write("Tables found:", tables)
-
-        if "procurement_data" not in tables["name"].values:
-            st.error("❌ Table 'procurement_data' NOT found!")
-        else:
-            st.success("✅ Table 'procurement_data' exists!")
-
-        conn.close()
-    except Exception as e:
-        st.error(f"Error reading DB: {e}")
-debug_db(LOCAL_DB_PATH)
 # Streamlit App
 st.title("Finnish Government Procurement Analysis")
 
