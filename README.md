@@ -30,11 +30,9 @@ The challenge: How  millions of raw rows be transformed into insights that suppo
 * How do trends vary across different procurement units, sectors, and years?
 
 ## Tech Stack
-* Python – Data processing, analysis, and visualization.
-* Pandas – Data manipulation and aggregation.
-* SQLite – Scalable storage for large datasets (~1.7M rows).
-* Matplotlib – Visualizations for trends and anomalies.
-* Streamlit – Interactive dashboard for exploring top suppliers, categories, monthly trends, and hidden savings & risk indicators.
+* Python & Pandas – Data processing, cleaning, and aggregation (~1.7M rows).
+* AWS S3 – Centralized storage for procurement CSV data; allows easy access and scalability.
+* Streamlit & Plotly – Interactive dashboard with drill-downs: top suppliers, categories, monthly trends, spend volatility, and hidden savings/risk insights.
 
 ## Data Ingestion
 Spend analytics beings with a reliable data ingestion since scaling is dependent on that. I built a Python ETL that loads raw CSV data into a SQLite mini-warehouse. This ensured that the data can be queried repeatedly and efficiently. 
@@ -107,10 +105,6 @@ The dashboard is organized into tabs, each reflecting a core area of analysis:
 * Supplier Concentration & Hidden Risks
 * Includes Maverick / Unclassified Spend, Spend Volatility, and Long-tail Supplier Analysis.
 
-#### Interactive Visualizations
-* Users can view bar charts, line charts, and pie charts for various procurement metrics.
-* Each chart is dynamically generated from the SQLite database containing the cleaned procurement data.
-
 #### Business & Consulting Insights
 Beyond simple reporting, the dashboard highlights:
 * Supplier dependency risks
@@ -119,7 +113,8 @@ Beyond simple reporting, the dashboard highlights:
 * Opportunities for supplier consolidation in long-tail spend
 
 #### Streamlined Workflow
-* The dashboard reads directly from the SQLite database generated in load_data.py.
-* Database connections are cached efficiently using st.cache_resource, ensuring fast and smooth updates.
+* The dashboard reads directly from the CSV stored on AWS S3, eliminating the need for a local database.
+* Data loading is cached using st.cache_data, ensuring fast and smooth updates.
+* Visualizations are built with Plotly, providing interactive charts for supplier, category, and monthly trend analysis.
 
 
