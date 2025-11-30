@@ -1,154 +1,51 @@
-import sqlite3
 import pandas as pd
-import matplotlib.pyplot as plt
+import plotly.express as px
 
+def load_data(csv_url):
+    df = pd.read_csv(csv_url, sep=';', encoding='utf-8')
+    df['tiliointisumma'] = pd.to_numeric(df['tiliointisumma'], errors='coerce')
+    df['tositepvm'] = pd.to_datetime(df['tositepvm'], errors='coerce')
+    return df
 
-#  Standard Analyses 
+def analyze_top_suppliers(df, top_n=10):
+    top = df.groupby('toimittaja_nimi')['tiliointisumma'].sum().nlargest(top_n).reset_index()
+    fig = px.bar(top, x='toimittaja_nimi', y='tiliointisumma', title='Top Suppliers')
+    return top, fig
 
-def analyze_top_suppliers(db_path, top_n=10):
-    conn = sqlite3.connect(db_path)
-    df = pd.read_sql(f"""
-        SELECT toimittaja_nimi, SUM(tiliointisumma) AS total_spend
-        FROM procurement_data
-        GROUP BY toimittaja_nimi
-        ORDER BY total_spend DESC
-        LIMIT {top_n};
-    """, conn)
-    conn.close()
+def analyze_top_categories(df, top_n=10):
+    top = df.groupby('hankintakategoria')['tiliointisumma'].sum().nlargest(top_n).reset_index()
+    fig = px.bar(top, x='hankintakategoria', y='tiliointisumma', title='Top Categories')
+    return top, fig
 
-    # Plot
-    fig, ax = plt.subplots()
-    ax.barh(df['toimittaja_nimi'], df['total_spend']/1e6)
-    ax.set_xlabel("Total Spend (Millions €)")
-    ax.set_title(f"Top {top_n} Suppliers by Total Spend")
-    ax.invert_yaxis()
+def analyze_monthly_trends(df):
+    monthly = df.groupby(df['tositepvm'].dt.to_period('M'))['tiliointisumma'].sum().reset_index()
+    monthly['tositepvm'] = monthly['tositepvm'].dt.to_timestamp()
+    fig = px.line(monthly, x='tositepvm', y='tiliointisumma', title='Monthly Spend Trends', markers=True)
+    return monthly, fig
 
-    return df, fig
+def analyze_supplier_concentration(df):
+    concentration = df.groupby('toimittaja_nimi')['tiliointisumma'].sum().sort_values(ascending=False).reset_index()
+    fig = px.pie(concentration.head(10), names='toimittaja_nimi', values='tiliointisumma', title='Top 10 Supplier Concentration')
+    return concentration, fig
 
+def analyze_spend_volatility(df):
+    monthly = df.groupby(df['tositepvm'].dt.to_period('M'))['tiliointisumma'].sum()
+    volatility = monthly.pct_change().fillna(0) * 100
+    vol_df = volatility.reset_index()
+    vol_df['tositepvm'] = vol_df['tositepvm'].dt.to_timestamp()
+    fig = px.line(vol_df, x='tositepvm', y='tiliointisumma', title='Monthly Spend Volatility (%)', markers=True)
+    return vol_df, fig
 
-def analyze_top_categories(db_path, top_n=10):
-    conn = sqlite3.connect(db_path)
-    df = pd.read_sql(f"""
-        SELECT hankintakategoria, SUM(tiliointisumma) AS total_spend
-        FROM procurement_data
-        GROUP BY hankintakategoria
-        ORDER BY total_spend DESC
-        LIMIT {top_n};
-    """, conn)
-    conn.close()
-
-    fig, ax = plt.subplots()
-    ax.barh(df['hankintakategoria'], df['total_spend']/1e6)
-    ax.set_xlabel("Total Spend (Millions €)")
-    ax.set_title(f"Top {top_n} Procurement Categories")
-    ax.invert_yaxis()
-
-    return df, fig
-
-
-def analyze_monthly_trends(db_path):
-    conn = sqlite3.connect(db_path)
-    df = pd.read_sql("""
-        SELECT strftime('%Y-%m', tositepvm) AS month, SUM(tiliointisumma) AS total_spend
-        FROM procurement_data
-        GROUP BY month
-        ORDER BY month;
-    """, conn)
-    conn.close()
-
-    fig, ax = plt.subplots(figsize=(12,6))
-    ax.plot(df['month'], df['total_spend']/1e6, marker='o')
-    ax.set_xlabel("Month")
-    ax.set_ylabel("Total Spend (Millions €)")
-    ax.set_title("Monthly Procurement Spend Trend")
-    plt.xticks(rotation=45)
-    plt.tight_layout()
-
-    return df, fig
-
-
-# Hidden Savings & Risk Indicators 
-
-def analyze_supplier_concentration(db_path, top_n=10):
-    conn = sqlite3.connect(db_path)
-    df = pd.read_sql("""
-        SELECT toimittaja_nimi, SUM(tiliointisumma) AS total_spend
-        FROM procurement_data
-        GROUP BY toimittaja_nimi
-        ORDER BY total_spend DESC
-    """, conn)
-    conn.close()
-
-    top_suppliers = df.head(top_n)
-    rest_sum = df['total_spend'][top_n:].sum()
-    plot_df = top_suppliers.copy()
-    plot_df.loc[len(plot_df)] = ['Other Suppliers', rest_sum]
-
-    fig, ax = plt.subplots()
-    ax.pie(plot_df['total_spend'], labels=plot_df['toimittaja_nimi'], autopct='%1.1f%%')
-    ax.set_title("Supplier Concentration: Top 10 vs Others")
-
-    return plot_df, fig
-
-
-def analyze_spend_volatility(db_path, top_n=10):
-    conn = sqlite3.connect(db_path)
-    df = pd.read_sql(f"""
-        SELECT hankintakategoria, MAX(tiliointisumma) - MIN(tiliointisumma) AS spend_range
-        FROM procurement_data
-        GROUP BY hankintakategoria
-        ORDER BY spend_range DESC
-        LIMIT {top_n};
-    """, conn)
-    conn.close()
-
-    fig, ax = plt.subplots()
-    ax.barh(df['hankintakategoria'], df['spend_range']/1e3)
-    ax.set_xlabel("Spend Range (€ thousands)")
-    ax.set_title("Top Categories by Spend Volatility")
-    ax.invert_yaxis()
-
-    return df, fig
-
-
-def analyze_maverick_spend(db_path):
-    conn = sqlite3.connect(db_path)
-    df = pd.read_sql("""
-        SELECT SUM(tiliointisumma) AS total_spend
-        FROM procurement_data
-        WHERE hankintakategoria IS NULL OR hankintakategoria = '';
-    """, conn)
-    conn.close()
-
-    total = df['total_spend'][0]
-    fig = None
-    if total and total > 0:
-        fig, ax = plt.subplots()
-        ax.barh(['Unclassified'], [total/1e3])
-        ax.set_xlabel("Total Spend (€ thousands)")
-        ax.set_title("Maverick / Unclassified Spend")
-        plt.tight_layout()
-
+def analyze_maverick_spend(df):
+    maverick = df[df['hankintakategoria'].isna()]
+    total = maverick['tiliointisumma'].sum()
+    fig = px.bar(maverick.groupby('toimittaja_nimi')['tiliointisumma'].sum().reset_index(),
+                 x='toimittaja_nimi', y='tiliointisumma', title='Maverick / Unclassified Spend')
     return total, fig
 
-
-def analyze_long_tail_suppliers(db_path):
-    conn = sqlite3.connect(db_path)
-    df = pd.read_sql("""
-        SELECT toimittaja_nimi, SUM(tiliointisumma) AS total_spend
-        FROM procurement_data
-        GROUP BY toimittaja_nimi
-        ORDER BY total_spend DESC
-    """, conn)
-    conn.close()
-
-    df['cum_pct'] = df['total_spend'].cumsum() / df['total_spend'].sum()
-    tail_suppliers = df[df['cum_pct'] > 0.8]
-
-    fig, ax = plt.subplots()
-    ax.barh(tail_suppliers['toimittaja_nimi'], tail_suppliers['total_spend']/1e3)
-    ax.set_xlabel("Spend (€ thousands)")
-    ax.set_title("Long-tail Supplier Analysis (bottom 20% of spend)")
-    ax.invert_yaxis()
-
-    return tail_suppliers, fig
+def analyze_long_tail_suppliers(df, threshold=0.01):
+    supplier_total = df.groupby('toimittaja_nimi')['tiliointisumma'].sum()
+    total_sum = supplier_total.sum()
+    long_tail = supplier_total[supplier_total / total_sum <= threshold].reset_index()
+    fig = px.bar(long_tail, x='toimittaja_nimi', y='tiliointisumma', title='Long-tail Suppliers')
+    return long_tail, fig

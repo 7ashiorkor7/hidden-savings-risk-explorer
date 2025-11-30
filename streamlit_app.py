@@ -1,11 +1,6 @@
 import streamlit as st
-import os
-#import requests
-import sqlite3
-#import pandas as pd
-
-
 from scripts.analyze_procurement import (
+    load_data,
     analyze_top_suppliers,
     analyze_top_categories,
     analyze_monthly_trends,
@@ -15,10 +10,11 @@ from scripts.analyze_procurement import (
     analyze_long_tail_suppliers
 )
 
-DB_URL = "https://finnishprocurementdb.s3.eu-north-1.amazonaws.com/procurement.db"
-LOCAL_DB_PATH = "procurement.db"   
+CSV_URL = "https://finnishprocurementdata.s3.eu-north-1.amazonaws.com/th_data_2025.csv"
 
-# Streamlit App
+# Load data once
+df = load_data(CSV_URL)
+
 st.title("Finnish Government Procurement Analysis")
 
 tabs = st.tabs([
@@ -31,47 +27,37 @@ tabs = st.tabs([
     "Long-tail Suppliers"
 ])
 
-# Top Suppliers
 with tabs[0]:
-    df, fig = analyze_top_suppliers(LOCAL_DB_PATH)
-    st.dataframe(df)
-    st.pyplot(fig)
+    top, fig = analyze_top_suppliers(df)
+    st.dataframe(top)
+    st.plotly_chart(fig, use_container_width=True)
 
-# Top Categories
 with tabs[1]:
-    df, fig = analyze_top_categories(LOCAL_DB_PATH)
-    st.dataframe(df)
-    st.pyplot(fig)
+    top, fig = analyze_top_categories(df)
+    st.dataframe(top)
+    st.plotly_chart(fig, use_container_width=True)
 
-# Monthly Trends
 with tabs[2]:
-    df, fig = analyze_monthly_trends(LOCAL_DB_PATH)
-    st.dataframe(df)
-    st.pyplot(fig)
+    monthly, fig = analyze_monthly_trends(df)
+    st.dataframe(monthly)
+    st.plotly_chart(fig, use_container_width=True)
 
-# Supplier Concentration
 with tabs[3]:
-    df, fig = analyze_supplier_concentration(LOCAL_DB_PATH)
-    st.dataframe(df)
-    st.pyplot(fig)
+    concentration, fig = analyze_supplier_concentration(df)
+    st.dataframe(concentration)
+    st.plotly_chart(fig, use_container_width=True)
 
-# Spend Volatility
 with tabs[4]:
-    df, fig = analyze_spend_volatility(LOCAL_DB_PATH)
-    st.dataframe(df)
-    st.pyplot(fig)
+    vol_df, fig = analyze_spend_volatility(df)
+    st.dataframe(vol_df)
+    st.plotly_chart(fig, use_container_width=True)
 
-# Maverick Spend
 with tabs[5]:
-    total, fig = analyze_maverick_spend(LOCAL_DB_PATH)
-    if total:
-        st.write(f"Total Unclassified Spend: €{total:,.2f}")
-        st.pyplot(fig)
-    else:
-        st.write("No Maverick / Unclassified Spend found.")
+    total, fig = analyze_maverick_spend(df)
+    st.write(f"Total Unclassified Spend: €{total:,.2f}")
+    st.plotly_chart(fig, use_container_width=True)
 
-# Long-tail Suppliers
 with tabs[6]:
-    df, fig = analyze_long_tail_suppliers(LOCAL_DB_PATH)
-    st.dataframe(df)
-    st.pyplot(fig)
+    long_tail, fig = analyze_long_tail_suppliers(df)
+    st.dataframe(long_tail)
+    st.plotly_chart(fig, use_container_width=True)
