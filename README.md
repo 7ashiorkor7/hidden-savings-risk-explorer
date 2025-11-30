@@ -1,4 +1,6 @@
 # Hidden Savings Risk Explorer – Finnish Public Procurement Analysis
+You can explore the interactive dashboard here: [Hidden Savings & Risk Explorer](https://hidden-savings-risk-explorer-9tfurtuzd7gftgwbnra6xj.streamlit.app/)
+
 This is a data-driven exploration of Finnish public procurement, designed to uncover spending patterns, key suppliers and potential savings opportunities. Currently, I am learning Finnish and I am curious to work with data that has Finnish words to encourange and challenge myself. Also, I am curious on how public money is utilised in Finland and how it flows across different organizations. 
 
 ## About the Data
